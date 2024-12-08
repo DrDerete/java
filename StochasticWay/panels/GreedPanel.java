@@ -14,6 +14,9 @@ public class GreedPanel extends JPanel {
 
         super();
 
+        cellW = w / world[0].length;
+        cellH = h / world.length;
+
         String winPath = "src\\StochasticWay\\source\\Win.jpg";
         String loosePath = "src\\StochasticWay\\source\\Loose.jpg";
         String arrowHLPath = "src\\StochasticWay\\source\\ArrowHL.jpg";
@@ -28,14 +31,14 @@ public class GreedPanel extends JPanel {
         setBounds(0, 0, w, h);
 
         for (Cell[] cells : world) {
-            for (int j = 0; j < cols; j++) {
+            for (Cell c : cells) {
                 JPanel cell = new JPanel();
-                switch (cells[j].getType()) {     //  WIN, LOOSE, BLOCK, MARKED. Если маркед, то смотрим Direction
+                switch (c.get_type()) {     //  WIN, LOOSE, BLOCK, MARKED. Если маркед, то смотрим Direction
                     case BLOCK -> cell.setBackground(Color.BLUE);
                     case WIN -> cell = new ImagePanel(winPath);
                     case LOOSE -> cell = new ImagePanel(loosePath);
                     case MARKED -> {
-                        switch (cells[j].getDirection()) {
+                        switch (c.get_direction()) {
                             case UP -> cell = new ImagePanel(arrowVUPath);
                             case DOWN -> cell = new ImagePanel(arrowVDPath);
                             case RIGHT -> cell = new ImagePanel(arrowHRPath);
@@ -47,5 +50,9 @@ public class GreedPanel extends JPanel {
                 add(cell);
             }
         }
+    }
+
+    public Dimension get_cell_dim() {
+        return new Dimension(cellW, cellH);
     }
 }

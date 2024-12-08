@@ -4,24 +4,29 @@ import StochasticWay.eNums.CellType;
 import StochasticWay.eNums.Direction;
 
 public class Cell {
-
-    private CellType type;
     private Direction direction = null;
+    private CellType type;
 
     public Cell(CellType type) {
         this.type = type;
     }
 
-    public CellType getType() {
+
+    public CellType get_type() {
         return type;
     }
 
-    public Direction getDirection() {
+    public void set_type(CellType type) {
+        this.type = type;
+    }
+
+    public Direction get_direction() {
         return direction;
     }
 
-    public void setDirection(Direction direction) {
+    public void set_direction(Direction direction) {
         this.direction = direction;
         type = CellType.MARKED;
     }
 }
+

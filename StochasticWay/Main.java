@@ -1,9 +1,9 @@
 package StochasticWay;
 
-import StochasticWay.Entity.Environment;
+import StochasticWay.Entity.Simulation;
 
 public class Main {
     public static void main(String[] args) {
-        new Environment(3, 4);
+        new Simulation().setVisible(true);
     }
 }

@@ -1,7 +1,7 @@
 package StochasticWay.Entity;
 
+import StochasticWay.eNums.CellType;
 import StochasticWay.eNums.Direction;
-import StochasticWay.panels.AgentPanel;
 
 import java.util.*;
 
@@ -9,52 +9,46 @@ public class Agent {
 
     private int row;
     private int col;
-    private final int size;
 
-    private final Map<Integer, Map<Integer, List<String>>> memory = new HashMap<>();  // структура вида {row: {col: [directions..]}}
+    private float p, oP;
+    private Boolean active;
 
+    private final Map<Integer, Map<Integer, Direction[]>> memory = new HashMap<>();  // структура вида {row: {col: [directions..]}}
 
     public Agent(int r, int c) {
         this.row = r;
         this.col = c;
-        this.size = 75;
+        this.active = true;
     }
 
     public void memorized(Cell[][] world) {
 
         for (int i = 0; i < world.length; i++) {
             for (int j = 0; j < world.length; j++) {
-                if (world[i][j].getDirection() != null) {
+                if (world[i][j].get_direction() != null) {
 
-                    List<String> directions = new LinkedList<>();  //свободные ячейки по направлянию дижения(надо для случаного шага)
-                    directions.add(world[i][j].getDirection().name().toLowerCase(Locale.ROOT));
+                    Direction[] directions = new Direction[5];  // свободные ячейки направления
+                    directions[4] = world[i][j].get_direction(); // направление к финишу
 
-                    switch (world[i][j].getDirection()) {   // учет свободных ячеек, для последующего случаного движения
-                        case Direction.LEFT, Direction.RIGHT: {
-                            if (world[i + 1][j].getDirection() != null) {
-                                directions.add("down");
-                            }
-                            if (world[i - 1][j].getDirection() != null) {
-                                directions.add("up");
-                            }
-                            break;
-                        }
-                        case Direction.DOWN, Direction.UP: {
-                            if (world[i][j + 1].getDirection() != null) {
-                                directions.add("right");
-                            }
-                            if (world[i][j - 1].getDirection() != null) {
-                                directions.add("left");
-                            }
-                        }
+                    if (world[i + 1][j].get_type() != CellType.BLOCK) {  // добавление свободных направления
+                        directions[0] = Direction.DOWN;
+                    }
+                    if (world[i - 1][j].get_type() != CellType.BLOCK) {
+                        directions[1] = Direction.UP;
+                    }
+                    if (world[i][j + 1].get_type() != CellType.BLOCK) {
+                        directions[2] = Direction.RIGHT;
+                    }
+                    if (world[i][j - 1].get_type() != CellType.BLOCK) {
+                        directions[3] = Direction.LEFT;
                     }
 
-                    if (memory.containsKey(i)) {
-                        memory.get(i).put(j, directions);
+                    if (memory.containsKey(i-1)) {    // сохранение
+                        memory.get(i-1).put(j-1, directions);
                     } else {
-                        Map<Integer, List<String>> map = new HashMap<>();
-                        map.put(j, directions);
-                        memory.put(i, map);
+                        Map<Integer, Direction[]> map = new HashMap<>();
+                        map.put(j-1, directions);
+                        memory.put(i-1, map);
                     }
                 }
             }
@@ -62,66 +56,107 @@ public class Agent {
 
     }
 
-    public int[] step(AgentPanel agPan) {  // шаг по команде в клетке
-
-        List<String> directions = memory.get(row).get(col);
-        String command = directions.getFirst();
-        List<String> ways = directions.subList(1, directions.size());
-
-        if (!ways.isEmpty()) {
-            command = randWay(command, ways);
+    public Direction step() {
+        // шаг по команде в клетке
+        Direction[] directions = memory.get(row).get(col); // лист движений
+        if (directions == null) {    // агент достиг win или loose
+            active = false;
+            return null;
         }
 
-        switch (command) {
-            case "left": {
+        Direction dir = directions[4]; // первый это движение в сторону финиша
+        List<Direction> allWays = new ArrayList<>(); // это остальные свободные направления
+        for (int i = 0; i < 4; i ++) {
+            if (directions[i] != null) allWays.add(directions[i]);
+        }
+
+        if (!allWays.isEmpty()) {
+            dir = rand_way(dir, allWays.toArray(new Direction[0])); // случайное движение
+        }
+
+        switch (dir) {
+            case Direction.LEFT: {
                 col -= 1;
-                agPan.moveAgent(col-1, true);
                 break;
             }
-            case "right": {
+            case Direction.RIGHT: {
                 col += 1;
-                agPan.moveAgent(col-1, true);
                 break;
             }
-            case "up": {
+            case Direction.UP: {
                 row -= 1;
-                agPan.moveAgent(row-1, false);
                 break;
             }
-            case "down": {
+            case Direction.DOWN: {
                 row += 1;
-                agPan.moveAgent(row-1, false);
             }
         }
 
-        return new int[] {row-1, col-1};
+        return dir;
     }
 
-    private String randWay(String com, List<String> ways) {
-
+    private Direction rand_way(Direction mainDir, Direction[] allDirs) {
+        // направление, куда пошёл агент
         Random rand = new Random();
-
         float way = rand.nextFloat();
-        float chance = 0.8f;
-        if (ways.size() == 1) {
-                if (way > chance + 0.05f) {
-                    com = ways.getFirst();
-                }
-        } else {
-            if (way > chance + 0.1f) {
-                com = ways.getLast();
-            } else if (way > chance) {
-                com = ways.getFirst();
+
+        List<Direction> rD = random_dirs(mainDir, allDirs);
+
+        if (p < oP) {
+            if (!rD.isEmpty()) {
+                mainDir = rD.getFirst();
+                rD = random_dirs(mainDir, allDirs);
             }
         }
-        return com;
+
+        if (rD.size() == 1) {
+            if (way > p + ((1 - p) / 4)) {  // если доступных направлений 2, работает этот вариант
+                mainDir = rD.getFirst();
+            }
+        } else if (rD.size() > 1) {
+            if (way > p + ((1 - p) / 2)) {  // если 3, то этот
+                mainDir = rD.getLast();
+            } else if (way > p) {
+                mainDir = rD.getFirst();
+            }
+        }
+        return mainDir;
+
     }
 
-    public int[] getPosition() {
-        return new int[] {row-1, col-1};
+    private List<Direction> random_dirs(Direction direction, Direction[] otherDirs) {
+        // направления, куда случайно может сместиться агент
+        List<Direction> rDirs = new ArrayList<>();
+        switch (direction) {
+            case UP, DOWN -> {
+                for (Direction d : otherDirs) {
+                    if (d == Direction.LEFT || d == Direction.RIGHT) rDirs.add(d);
+                }
+            }
+            default -> {
+                for (Direction d : otherDirs) {
+                    if (d == Direction.UP || d == Direction.DOWN) rDirs.add(d);
+                }
+            }
+        }
+        return rDirs;
     }
 
-    public int getSize() {
-        return size;
+    public int[] get_env_position() {
+        return new int[] {row+1, col+1};
     }
+
+    public int[] get_sim_pos() {
+        return new int[] {row, col};
+    }
+
+    public Boolean is_active() {
+        return active;
+    }
+
+    public void set_p(float p) {
+        this.p = p;
+        this.oP = (1 - p) / 2;
+    }
+
 }
